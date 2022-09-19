@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>CG</title>
+        <script src="./script.js" defer></script>
+        <script src="./gui/dat.gui.min.js"></script>
+        <script src="https://webgl2fundamentals.org/webgl/resources/twgl-full.min.js"></script>
+        <script src="https://webgl2fundamentals.org/webgl/resources/m4.js"></script>
+        <script src="https://webgl2fundamentals.org/webgl/resources/flattened-primitives.js"></script>
+        <link rel="stylesheet" href="./gui/dat.gui.css">
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <canvas id="canvas"></canvas>
+        <div id="object-creation">
+            <div id="existing-objects"></div>
+            <div>
+                <label for="cube">Cubo</label>
+                <input type="radio" name="shape" id="cube" value="0" checked>
+            </div>
+           <div>
+                <label for="sphere">Esfera</label>
+                <input type="radio" name="shape" id="sphere" value="1">
+           </div>
+            <div>
+                <label for="cone">Cone</label>
+                <input type="radio" name="shape" id="cone" value="2">
+            </div>
+            <input type="text" id="name" placeholder="Nome" autocomplete="off">
+            <button id="create-button">Criar</button>
+        </div>
+    </body>
+</html>
