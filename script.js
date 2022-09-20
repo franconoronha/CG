@@ -135,81 +135,106 @@ function main() {
   var objects = [];
   var nodeInfosByName = {};
 
-  // Let's make all the nodes
-  // var blockGuyNodeDescriptions
-
-/*   function makeNode(nodeDescription) {
-    var trs  = new TRS();
-    var node = new Node(trs);
-    nodeInfosByName[nodeDescription.name] = {
-      trs: trs,
-      node: node,
-    };
-    trs.translation = nodeDescription.translation || trs.translation;
-    if (nodeDescription.draw !== false) {
-      node.drawInfo = {
-        uniforms: {
-          u_colorOffset: [0, 0, 0.6, 0],
-          u_colorMult: [0.4, 0.4, 0.4, 1],
-        },
-        programInfo: programInfo,
-        bufferInfo: nodeDescription.bufferInfo,
-        vertexArray: nodeDescription.nodeVAO,
-      };
-      objectsToDraw.push(node.drawInfo);
-      objects.push(node);
-    }
-    makeNodes(nodeDescription.children).forEach(function(child) {
-      child.setParent(node);
-    });
-    return node;
-  }
-
-  function makeNodes(nodeDescriptions) {
-    return nodeDescriptions ? nodeDescriptions.map(makeNode) : [];
-  } */
-
-  /* var base_element = {
-    name: "base",
-    draw: false,
-    children: []
-  }; */
+  var state = {};
   
-  /* var scene = makeNode(base_element); */
+  var cameraPosition = [4, 3.5, 10];
+  state.camera_x = cameraPosition[0];
+  state.camera_y = cameraPosition[1];
+  state.camera_z = cameraPosition[2];
+
+  var target = [0, 3.5, 0];
+  state.target_x = target[0];
+  state.target_y = target[1];
+  state.target_z = target[2];
+
+  var guiCamera = gui.addFolder("Camera");
+  guiCamera.add(state, "camera_x", 0, 50).onChange(value => {
+    cameraPosition[0] = value;
+  });
+  guiCamera.add(state, "camera_y", 0, 50).onChange(value => {
+    cameraPosition[1] = value;
+  });
+  guiCamera.add(state, "camera_z", 0, 50).onChange(value => {
+    cameraPosition[2] = value;
+  });
+
+  var guiTarget = gui.addFolder("Target");
+  guiTarget.add(state, "target_x", 0, 50).onChange(value => {
+    target[0] = value;
+  });
+  guiTarget.add(state, "target_y", 0, 50).onChange(value => {
+    target[1] = value;
+  });
+  guiTarget.add(state, "target_z", 0, 50).onChange(value => {
+    target[2] = value;
+  });
+
   var objectList = document.getElementById("existing-objects");
+  var gui_x, gui_y, gui_z, gui_rotate_x, gui_rotate_y, gui_rotate_z, gui_scale_x, gui_scale_y, gui_rotate_z;
+  var objFolder = gui.addFolder("Object");
   function selectElement(e) {
     var selected = document.querySelector(".selected");
     if(selected) {
       selected.classList.remove("selected");
-      gui.remove(x);
-      gui.remove(y);
-      gui.remove(z);
+      objFolder.remove(gui_x);
+      objFolder.remove(gui_y);
+      objFolder.remove(gui_z);
+      objFolder.remove(gui_rotate_x);
+      objFolder.remove(gui_rotate_y);
+      objFolder.remove(gui_rotate_z);
+      objFolder.remove(gui_scale_x);
+      objFolder.remove(gui_scale_y);
+      objFolder.remove(gui_scale_z);
     }
     e.target.classList.add("selected");
-    var selected_id = parseInt(e.target.getAttribute("id"));
+
     var selected_name = e.target.innerHTML;
+    var selected_node = nodeInfosByName[selected_name];
 
-    var state = {
-      x: 0,
-      y: 0,
-      z: 0,
-    }
+    state.x = selected_node.trs.translation[0];
+    state.y = selected_node.trs.translation[1];
+    state.z = selected_node.trs.translation[2];
+    state.rotate_x = selected_node.trs.rotation[0];
+    state.rotate_y = selected_node.trs.rotation[1];
+    state.rotate_z = selected_node.trs.rotation[2];
+    state.scale_x = selected_node.trs.scale[0];
+    state.scale_y = selected_node.trs.scale[1];
+    state.scale_z = selected_node.trs.scale[2];
 
-    var x = gui.add(state, "x", 0, 100).onChange((value) => {
-      nodeInfosByName[selected_name].trs.translation[0] = value;
+    gui_x = objFolder.add(state, "x", -10, 10).onChange((value) => {
+      selected_node.trs.translation[0] = value;
     });
-    var y = gui.add(state, "y", 0, 100).onChange((value) => {
-      nodeInfosByName[selected_name].trs.translation[1] = value;
-      console.log(objects);
-      console.log(objectsToDraw);
+    gui_y = objFolder.add(state, "y", -10, 10).onChange((value) => {
+      selected_node.trs.translation[1] = value;
     });
-    var z = gui.add(state, "z", 0, 100).onChange((value) => {
-      nodeInfosByName[selected_name].trs.translation[2] = value;
+    gui_z = objFolder.add(state, "z", -10, 10).onChange((value) => {
+      selected_node.trs.translation[2] = value;
     });
 
+    gui_rotate_x = objFolder.add(state, "rotate_x", -10, 10).onChange((value) => {
+      selected_node.trs.rotation[0] = value;
+    });
+    gui_rotate_y = objFolder.add(state, "rotate_y", -10, 10).onChange((value) => {
+      selected_node.trs.rotation[1] = value;
+    });
+    gui_rotate_z = objFolder.add(state, "rotate_z", -10, 10).onChange((value) => {
+      selected_node.trs.rotation[2] = value;
+    });
+
+    gui_scale_x = objFolder.add(state, "scale_x", 1, 10).onChange(value => {
+      selected_node.trs.scale[0] = value;
+    });
+    gui_scale_y = objFolder.add(state, "scale_y", 1, 10).onChange(value => {
+      selected_node.trs.scale[1] = value;
+    });
+    gui_scale_z = objFolder.add(state, "scale_z", 1, 10).onChange(value => {
+      selected_node.trs.scale[2] = value;
+    });
   }
 
-  var id = 0;
+  var shapeNames = ["unnamedCube_", "unnamedSphere_", "unnamedCone_"];
+  var shapeCounter = [0, 0, 0];
+  
   function createObject() {
     var name_input = document.getElementById("name");
     var shape_index = document.querySelector("input[name='shape']:checked");
@@ -218,15 +243,16 @@ function main() {
     var trs  = new TRS();
     var node = new Node(trs);
 
-    if(name_input.value) {
-      console.log("true");
+    var node_name = name_input.value;
+    if(!name_input.value.length) {
+      node_name = shapeNames[shape_index] + shapeCounter[shape_index];
     }
-    node.name = name_input.value || "undefined";
-    node.draw = true;
-    node.id = id;
-    id += 1;
+    shapeCounter[shape_index]++;
 
-    nodeInfosByName[name_input.value] = {
+    node.name = node_name;
+    node.draw = true;
+
+    nodeInfosByName[node.name] = {
       trs: trs,
       node: node,
     };
@@ -246,15 +272,9 @@ function main() {
     objects.push(node);
     /* } */
 
-    /*base_element.children.push(nodeDescription);
-
-    scene = makeNode(base_element); */
-
-    
     var listElement = document.createElement("p");
-    listElement.innerHTML = name_input.value;
+    listElement.innerHTML = node_name;
     listElement.classList.add("list-element");
-    listElement.setAttribute("id", node.id);
     listElement.onclick = selectElement;
     objectList.appendChild(listElement);
 
@@ -267,9 +287,7 @@ function main() {
   requestAnimationFrame(drawScene);
 
   // Draw the scene.
-  function drawScene(time) {
-    time *= 0.001;
-
+  function drawScene() {
     twgl.resizeCanvasToDisplaySize(gl.canvas);
 
     // Tell WebGL how to convert from clip space to pixels
@@ -284,8 +302,7 @@ function main() {
         m4.perspective(fieldOfViewRadians, aspect, 1, 200);
 
     // Compute the camera's matrix using look at.
-    var cameraPosition = [4, 3.5, 10];
-    var target = [0, 3.5, 0];
+
     var up = [0, 1, 0];
     var cameraMatrix = m4.lookAt(cameraPosition, target, up);
 
