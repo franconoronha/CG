@@ -70,7 +70,6 @@ Node.prototype.setParent = function(parent) {
       this.parent.children.splice(ndx, 1);
     }
   }
-
   // Add us to our new parent
   if (parent) {
     parent.children.push(this);
@@ -79,7 +78,6 @@ Node.prototype.setParent = function(parent) {
 };
 
 Node.prototype.updateWorldMatrix = function(matrix) {
-
   var source = this.source;
   if (source) {
     source.getMatrix(this.localMatrix);
@@ -100,6 +98,10 @@ Node.prototype.updateWorldMatrix = function(matrix) {
   });
 };
 
+function degToRad(d) {
+  return d * Math.PI / 180;
+}
+
 function main() {
   // Get A WebGL context
   /** @type {HTMLCanvasElement} */
@@ -108,28 +110,28 @@ function main() {
   if (!gl) { return; }
   const gui = new dat.GUI();
 
-  // Tell the twgl to match position with a_position, n
-  // normal with a_normal etc..
+  // Tell the twgl to match position with a_position, normal with a_normal etc..
   twgl.setAttributePrefix("a_");
-
-  var cubeBufferInfo = flattenedPrimitives.createCubeBufferInfo(gl, 1);
-  var sphereBufferInfo = flattenedPrimitives.createSphereBufferInfo(gl, 1, 10, 10); // 
-  var coneBufferInfo   = flattenedPrimitives.createTruncatedConeBufferInfo(gl, 2, 0, 2, 3, 3, true, false);
-  var bufferArray = [cubeBufferInfo, sphereBufferInfo, coneBufferInfo];
+ 
+  var modelInfo = {
+    position: {
+      numComponents: 3,
+      data: [-1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1, -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1]
+    },
+    indices: {
+      numComponents: 3,
+      data: [0, 1, 3, 3, 1, 2, 1, 5, 2, 2, 5, 6, 5, 4, 6, 6, 4, 7, 4, 0, 7, 7, 0, 3, 3, 2, 7, 7, 2, 6, 4, 5, 0, 0, 5, 1]
+    },
+    normals: {
+      numComponents: 3,
+      data: [0, 0, 1, 1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 1, 0, 0, -1, 0]
+    }
+  };
 
   // setup GLSL program
   var programInfo = twgl.createProgramInfo(gl, [vs, fs]);
-
-  var cubeVAO   = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
-  var sphereVAO = twgl.createVAOFromBufferInfo(gl, programInfo, sphereBufferInfo);
-  var coneVAO   = twgl.createVAOFromBufferInfo(gl, programInfo, coneBufferInfo);
-  var VAOArray = [cubeVAO, sphereVAO, coneVAO];
-
-  function degToRad(d) {
-    return d * Math.PI / 180;
-  }
-
-  var fieldOfViewRadians = degToRad(60);
+  var modelBufferInfo = twgl.createBufferInfoFromArrays(gl, modelInfo);
+  var basic_VAO = twgl.createVAOFromBufferInfo(gl, programInfo, modelBufferInfo);
 
   var objectsToDraw = [];
   var objects = [];
@@ -169,9 +171,42 @@ function main() {
     target[2] = value;
   });
 
+  var deg = 60;
+  var fieldOfViewRadians = degToRad(deg);
+  var cameraPosition = [10, 5, 10];
+  var target = [0, 0, 0];
+  var up = [0, 1, 0];
+
+  document.onwheel = function(e) {
+    var move = e.deltaY / 25;
+    deg += move;
+    fieldOfViewRadians = degToRad(deg);
+  };
+
+  var dragging = false;
+  var dX, dY, old_x, old_y;
+
+  canvas.onmousedown = (e) => {
+    old_x = e.pageX, old_y = e.pageY;
+    dragging = true;
+  };
+
+  canvas.onmouseup = () => {dragging = false};
+  document.onmousemove = function(e) {
+    if(!dragging) return;
+    dX = (e.pageX - old_x) * 2 * Math.PI / gl.canvas.width;
+    dY = (e.pageY - old_y) * 2 * Math.PI / gl.canvas.height;
+    scene.source.rotation[0] += dY;
+    scene.source.rotation[1] += dX;
+    old_x = e.pageX, old_y = e.pageY;
+
+  };
+
   var objectList = document.getElementById("existing-objects");
-  var gui_x, gui_y, gui_z, gui_rotate_x, gui_rotate_y, gui_rotate_z, gui_scale_x, gui_scale_y, gui_rotate_z;
+  var gui_x, gui_y, gui_z, gui_rotate_x, gui_rotate_y, gui_rotate_z, gui_scale_x, gui_scale_y, gui_scale_z;
   var objFolder = gui.addFolder("Object");
+  var selectedElement = {};
+
   function selectElement(e) {
     var selected = document.querySelector(".selected");
     if(selected) {
@@ -190,6 +225,7 @@ function main() {
 
     var selected_name = e.target.innerHTML;
     var selected_node = nodeInfosByName[selected_name];
+    selectedElement = selected_node.node;
 
     state.x = selected_node.trs.translation[0];
     state.y = selected_node.trs.translation[1];
@@ -232,22 +268,20 @@ function main() {
     });
   }
 
-  var shapeNames = ["unnamedCube_", "unnamedSphere_", "unnamedCone_"];
-  var shapeCounter = [0, 0, 0];
-  
+  var unnamedCounter = 0;
+  var scene = new Node(new TRS());
+  selectedElement = scene;
+
   function createObject() {
     var name_input = document.getElementById("name");
-    var shape_index = document.querySelector("input[name='shape']:checked");
-    shape_index = parseInt(shape_index.value);
-
     var trs  = new TRS();
     var node = new Node(trs);
 
     var node_name = name_input.value;
     if(!name_input.value.length) {
-      node_name = shapeNames[shape_index] + shapeCounter[shape_index];
+      node_name = "unnamedObject" + unnamedCounter;
+      unnamedCounter++;
     }
-    shapeCounter[shape_index]++;
 
     node.name = node_name;
     node.draw = true;
@@ -257,20 +291,19 @@ function main() {
       node: node,
     };
 
-    /* if (nodeDescription.draw !== false) { */
     node.drawInfo = {
       uniforms: {
         u_colorOffset: [0, 0, 0.6, 0],
         u_colorMult: [0.4, 0.4, 0.4, 1],
       },
       programInfo: programInfo,
-      bufferInfo: bufferArray[shape_index],
-      vertexArray: VAOArray[shape_index]
+      bufferInfo: modelBufferInfo,
+      vertexArray: basic_VAO
     };
 
     objectsToDraw.push(node.drawInfo);
     objects.push(node);
-    /* } */
+    selectedElement.children.push(node);
 
     var listElement = document.createElement("p");
     listElement.innerHTML = node_name;
@@ -284,9 +317,39 @@ function main() {
   var button = document.getElementById("create-button");
   button.onclick = createObject;
 
-  requestAnimationFrame(drawScene);
+  // SALVAR E CARREGAR 
+  /* var inputElement = document.getElementById("modelInput");
+  state.loadModel = () => {inputElement.click()};
 
-  // Draw the scene.
+  inputElement.onchange = function(e) {
+    if(inputElement.files) {
+      const reader = new FileReader();
+      reader.readAsText(inputElement.files[0]);
+      reader.onload = function() {
+        modelInfo = JSON.parse(reader.result);
+        
+        // SUBSTITUIR POR FUNÇÃO DE SETUP
+        modelBufferInfo = twgl.createBufferInfoFromArrays(gl, modelInfo);
+        VAO = twgl.createVAOFromBufferInfo(gl, programInfo, modelBufferInfo);
+      };
+    }
+  };
+
+  state.saveModel = function() {
+      var name = prompt("Digite o nome do arquivo");
+      if(name != null) {
+        var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(modelInfo));
+        var dlAnchorElem = document.createElement("a");
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", name + ".json");
+        dlAnchorElem.click();
+      }
+  };
+  gui.add(state, 'loadModel').name("Carregar modelo");
+  gui.add(state, 'saveModel').name("Salvar modelo"); */
+  // FIM SALVAR E CARREGAR
+
+  requestAnimationFrame(drawScene);
   function drawScene() {
     twgl.resizeCanvasToDisplaySize(gl.canvas);
 
@@ -302,8 +365,6 @@ function main() {
         m4.perspective(fieldOfViewRadians, aspect, 1, 200);
 
     // Compute the camera's matrix using look at.
-
-    var up = [0, 1, 0];
     var cameraMatrix = m4.lookAt(cameraPosition, target, up);
 
     // Make a view matrix from the camera matrix.
@@ -312,16 +373,14 @@ function main() {
     var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
 
     // Update all world matrices in the scene graph
-    //scene.updateWorldMatrix();
+    scene.updateWorldMatrix();
 
     // Compute all the matrices for rendering
     objects.forEach(function(object) {
-        object.updateWorldMatrix();
         object.drawInfo.uniforms.u_matrix = m4.multiply(viewProjectionMatrix, object.worldMatrix);
     });
 
     // ------ Draw the objects --------
-
     twgl.drawObjectList(gl, objectsToDraw);
 
     requestAnimationFrame(drawScene);
